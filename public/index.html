@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>O'quv markazi</title>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f6;--card:#fff;--ink:#10233f;--mut:#5d6b80;--line:#d9e0ea;--acc:#0e7c7b;--coin:#f2b01e}
+@media(prefers-color-scheme:dark){:root{--bg:#0c1624;--card:#14233a;--ink:#e8eef7;--mut:#9aabc2;--line:#25364f;--acc:#3cc0be}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Onest,system-ui,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:16px}
+h1,h2,h3{margin:0 0 10px}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+input,select,button{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);max-width:100%}
+button{background:var(--acc);color:#fff;border:0;cursor:pointer;font-weight:600}button.g{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.r{background:#c0392b}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.tabs button{background:var(--card);color:var(--ink);border:1px solid var(--line)}.tabs button.on{background:var(--ink);color:var(--bg)}
+table{width:100%;border-collapse:collapse}td,th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.scroll{overflow-x:auto}.coin{color:var(--coin);font-weight:800}.big{font-size:30px;font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.mut{color:var(--mut)}.bad{color:#c0392b;font-weight:600}.ok{color:var(--acc);font-weight:600}
+header{display:flex;justify-content:space-between;align-items:center}
+</style></head><body><div class="wrap" id="app"></div>
+<script>
+const $=s=>document.querySelector(s), h=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let tok=localStorage.tk||'',role=localStorage.role||'',tab='',D={};
+async function api(p,m='GET',b){const r=await fetch('/api'+p,{method:m,headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:b?JSON.stringify(b):undefined});const j=await r.json();if(!r.ok){alert(j.error||'Xatolik');throw j}return j}
+const val=id=>document.getElementById(id).value;
+function logout(){localStorage.clear();tok='';role='';start()}
+async function doLogin(){try{const r=await api('/login','POST',{username:val('lu'),password:val('lp')});tok=localStorage.tk=r.token;role=localStorage.role=r.role;tab='';start()}catch{}}
+async function start(){if(!tok)return landing();try{role=='admin'?await adminView():await studentView()}catch{logout()}}
+function chart(t,l,v,c){if(!l.length)return`<div class="card"><b>${t}</b><div class="mut">Hali ma'lumot yo'q</div></div>`;const W=300,H=110,m=Math.max(...v,1),pts=v.map((x,i)=>[l.length==1?W/2:10+i*(W-20)/(l.length-1),H-12-(x/m)*(H-30)]);
+return`<div class="card"><b>${t}</b><svg viewBox="0 0 ${W} ${H+14}" width="100%"><polyline fill="none" stroke="${c}" stroke-width="2.5" points="${pts.map(p=>p.join(',')).join(' ')}"/>${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${c}"/><text x="${p[0]}" y="${p[1]-7}" font-size="10" text-anchor="middle" fill="currentColor">${v[i]}</text><text x="${p[0]}" y="${H+10}" font-size="9" text-anchor="middle" fill="currentColor" opacity=".6">${l[i].slice(2)}</text>`).join('')}</svg></div>`}
+async function loadTop(){const s=val('sub');if(!s)return;const r=await api('/top?subject='+encodeURIComponent(s));$('#top').innerHTML=`<div class="mut">${r.total} ta o'quvchi</div><table>${r.top.map(x=>`<tr><td>${x.place}</td><td>${h(x.name)}</td><td class="mut">${h(x.group)}</td><td class="coin">${x.coins} 🪙</td></tr>`).join('')}</table>`}
+async function landing(){const subs=await api('/subjects');
+$('#app').innerHTML=`<h1>O'quv markazi</h1><div class="grid"><div class="card"><h3>Kirish</h3><div class="row"><input id="lu" placeholder="Login"></div><div class="row"><input id="lp" type="password" placeholder="Parol"></div><button onclick="doLogin()">Kirish</button></div>
+<div class="card"><h3>O'qishga yozilish</h3>${['first:Ism','last:Familya','address:Uy manzil','phone:Telefon raqam','phone2:Qo\'shimcha raqam','ref_code:Taklif kodi (ixtiyoriy)'].map(x=>{const[k,n]=x.split(':');return`<div class="row"><input id="a_${k}" placeholder="${n}"></div>`}).join('')}<button onclick="apply()">Ariza yuborish</button></div></div>
+<div class="card"><h3>Eng faol 20 o'quvchi</h3><div class="row"><select id="sub" onchange="loadTop()">${subs.map(s=>`<option>${h(s)}</option>`).join('')}</select></div><div id="top"></div></div>`;loadTop()}
+async function apply(){const b={};['first','last','address','phone','phone2','ref_code'].forEach(k=>b[k]=val('a_'+k));await api('/apply','POST',b);alert("Arizangiz yuborildi! Tez orada bog'lanamiz.");landing()}
+
+// ---------- ADMIN ----------
+const AT=['Guruhlar','Arizalar','Davomat','To\'lovlar','Uy ishi','Do\'kon'];
+async function adminView(){D=await api('/admin/overview');tab=tab||AT[0];
+$('#app').innerHTML=`<header><h2>Admin panel</h2><button class="g" onclick="logout()">Chiqish</button></header><div class="tabs">${AT.map(t=>`<button class="${t==tab?'on':''}" onclick="tab='${t.replace(/'/g,"\\'")}';adminView()">${t}${t=='Arizalar'&&D.apps.length?' ('+D.apps.length+')':''}</button>`).join('')}</div><div id="v"></div>`;
+({Guruhlar:gGroups,Arizalar:gApps,Davomat:gAtt,"To'lovlar":gPay,'Uy ishi':gHw,"Do'kon":gShop})[tab]()}
+const gopts=()=>D.groups.map(g=>`<option value="${g.id}">${h(g.name)} — ${h(g.subject)}</option>`).join('');
+function gGroups(){$('#v').innerHTML=`<div class="card"><h3>Yangi guruh</h3><div class="row"><input id="gn" placeholder="Nomi (A17)"><input id="gs" placeholder="Fan (Ingliz tili)"><input id="gd" placeholder="Kunlar (Du-Chor-Ju)"><input id="gt" placeholder="Vaqt 15:00"><button onclick="addG()">Qo'shish</button></div></div>
+<div class="card scroll"><h3>Guruhlar va dars vaqti</h3><table>${D.groups.map(g=>`<tr><td><input id="n${g.id}" value="${h(g.name)}" size=6></td><td><input id="s${g.id}" value="${h(g.subject)}" size=12></td><td><input id="d${g.id}" value="${h(g.days)}" size=12></td><td><input id="t${g.id}" value="${h(g.time)}" size=6></td><td>${g.n} ta</td><td><button onclick="saveG(${g.id})">Saqlash</button></td></tr>`).join('')}</table></div>
+<div class="card scroll"><h3>O'quvchilar (${D.students.length})</h3><table>${D.students.map(s=>`<tr><td>${h(s.first)} ${h(s.last)}<div class="mut">${h(s.phone)} · ${h(s.phone2)}</div></td><td>${h(s.username)}</td><td><select onchange="api('/admin/students/${s.id}/group','POST',{group_id:this.value})">${D.groups.map(g=>`<option value="${g.id}" ${g.id==s.group_id?'selected':''}>${h(g.name)}</option>`).join('')}</select></td><td class="coin">${s.coins} 🪙</td><td><button class="g" onclick="reset(${s.id})">Yangi parol</button></td></tr>`).join('')}</table></div>`}
+const addG=async()=>{await api('/admin/groups','POST',{name:val('gn'),subject:val('gs'),days:val('gd'),time:val('gt')});adminView()};
+const saveG=async id=>{await api('/admin/groups/'+id,'PUT',{name:val('n'+id),subject:val('s'+id),days:val('d'+id),time:val('t'+id)});alert('Saqlandi')};
+const reset=async id=>{const r=await api(`/admin/students/${id}/reset`,'POST');alert('Yangi parol: '+r.password)};
+function gApps(){$('#v').innerHTML=`<div class="card"><h3>Yangi arizalar</h3>${D.apps.length?D.apps.map(a=>`<div class="row"><div style="flex:1"><b>${h(a.first)} ${h(a.last)}</b><div class="mut">${h(a.address)} · ${h(a.phone)} · ${h(a.phone2)}${a.ref_code?' · kod '+h(a.ref_code):''}</div></div><select id="ag${a.id}">${gopts()}</select><button onclick="acc(${a.id})">Qabul qilish</button><button class="r" onclick="api('/admin/applications/${a.id}/reject','POST').then(adminView)">Rad</button></div>`).join(''):'<div class="mut">Ariza yo\'q</div>'}<p class="mut">Guruh yo'q bo'lsa, avval "Guruhlar" bo'limida yangi guruh oching.</p></div>`}
+const acc=async id=>{const r=await api(`/admin/applications/${id}/accept`,'POST',{group_id:val('ag'+id)});alert(`Qabul qilindi!\nLogin: ${r.username}\nParol: ${r.password}\nBuni o'quvchiga bering.`);adminView()};
+async function gAtt(){const d=$('#ad')?.value||new Date().toISOString().slice(0,10);$('#v').innerHTML=`<div class="card"><div class="row"><select id="ag" onchange="loadAtt()">${gopts()}</select><input type="date" id="ad" value="${d}" onchange="loadAtt()"></div><div id="al"></div></div>`;loadAtt()}
+async function loadAtt(){if(!val('ag'))return;const L=await api(`/admin/attendance?group_id=${val('ag')}&date=${val('ad')}`);window.AL=L;$('#al').innerHTML=`<table>${L.map(s=>`<tr><td>${h(s.first)} ${h(s.last)}</td><td><select id="st${s.id}"><option value="keldi" ${s.status!='kelmadi'?'selected':''}>Keldi (+1🪙)</option><option value="kelmadi" ${s.status=='kelmadi'?'selected':''}>Kelmadi</option></select></td><td><input id="rs${s.id}" placeholder="Sababi" value="${h(s.reason||'')}"></td><td><label><input type="checkbox" id="ac${s.id}" ${s.active?'checked':''}> Faol (+1🪙)</label></td></tr>`).join('')}</table><button onclick="saveAtt()">Davomatni saqlash</button>`}
+const saveAtt=async()=>{await api('/admin/attendance','POST',{date:val('ad'),records:AL.map(s=>({student_id:s.id,status:val('st'+s.id),reason:val('rs'+s.id),active:$('#ac'+s.id).checked}))});alert('Saqlandi')};
+async function gPay(){const m=$('#pm')?.value||new Date().toISOString().slice(0,7);const P=await api('/admin/payments?month='+m);
+$('#v').innerHTML=`<div class="card scroll"><div class="row"><b>Oy:</b><input type="month" id="pm" value="${m}" onchange="gPay()"></div><table>${P.map(s=>`<tr><td>${h(s.gname)}</td><td>${h(s.first)} ${h(s.last)}</td>${s.paid?`<td class="ok">To'lagan: ${s.paid.toLocaleString()} so'm</td><td></td>`:`<td class="bad">Kechikkan</td><td><input id="py${s.id}" type="number" placeholder="Summa" style="width:110px"> <button onclick="pay(${s.id})">To'lov</button></td>`}</tr>`).join('')}</table></div>`}
+const pay=async id=>{await api('/admin/payments','POST',{student_id:id,month:val('pm'),amount:+val('py'+id)});gPay()};
+function gHw(){$('#v').innerHTML=`<div class="card"><h3>Uy ishi bahosi</h3><p class="mut">85 va undan yuqori ball = +1 🪙</p><div class="row"><select id="hs">${D.students.map(s=>`<option value="${s.id}">${h(s.first)} ${h(s.last)} (${h(s.gname)})</option>`).join('')}</select><input id="hb" type="number" min=0 max=100 placeholder="Ball"><button onclick="hw()">Saqlash</button></div></div>`}
+const hw=async()=>{await api('/admin/homework','POST',{student_id:val('hs'),score:+val('hb')});alert('Saqlandi')};
+function gShop(){$('#v').innerHTML=`<div class="card"><h3>Do'konga mahsulot</h3><div class="row"><input id="sn" placeholder="Masalan: Ruchka"><input id="sp" type="number" placeholder="Narxi (coin)"><button onclick="addS()">Qo'shish</button></div><table>${D.shop.map(i=>`<tr><td>${h(i.name)}</td><td class="coin">${i.price} 🪙</td><td><button class="r" onclick="api('/admin/shop/${i.id}','DELETE').then(adminView)">O'chirish</button></td></tr>`).join('')}</table></div><div class="card"><h3>Oxirgi xaridlar</h3>${D.orders.map(o=>`<div>${o.date} — ${h(o.first)} ${h(o.last)}: ${h(o.note)} (${o.price} 🪙)</div>`).join('')||'<span class="mut">Hali yo\'q</span>'}</div>`}
+const addS=async()=>{await api('/admin/shop','POST',{name:val('sn'),price:+val('sp')});adminView()};
+
+// ---------- O'QUVCHI ----------
+const ST=['Natijalar','Reyting',"Do'kon",'Sozlamalar'];
+async function studentView(){const me=await api('/me');D=me;tab=ST.includes(tab)?tab:'Natijalar';
+$('#app').innerHTML=`<header><h2>${h(me.first)} ${h(me.last)}</h2><button class="g" onclick="logout()">Chiqish</button></header><div class="tabs">${ST.map(t=>`<button class="${t==tab?'on':''}" onclick="tab=\`${t}\`;studentView()">${t}</button>`).join('')}</div><div id="v"></div>`;
+({Natijalar:sRes,Reyting:sRank,"Do'kon":sShop,Sozlamalar:sSet})[tab](me)}
+function sRes(m){const s=m.series;$('#v').innerHTML=`<div class="grid"><div class="card"><div class="mut">Guruh</div><div class="big">${h(m.gname)}</div><div>${h(m.subject)}</div><div class="mut">${h(m.days)} · ${h(m.time)}</div></div>
+<div class="card"><div class="mut">Tangalar</div><div class="big coin">${m.balance} 🪙</div><div class="mut">Jami topilgan: ${m.earned}</div></div>
+<div class="card"><div class="mut">Reyting (${h(m.subject)})</div><div class="big">${m.rank.place}-o'rin</div><div class="mut">${m.rank.total} ta o'quvchi ichida</div></div>
+<div class="card"><div class="mut">O'rtacha baho</div><div class="big">${m.avg}</div><div class="mut">Uy vazifa: ${m.homework} · Qatnashgan: ${m.attend} · Faol: ${m.active}</div></div></div>
+<div class="grid">${chart("O'rtacha baho (oylik)",s.labels,s.avg,'#0e7c7b')}${chart('Yig\'ilgan tangalar',s.labels,s.coins,'#f2b01e')}${chart('Uy vazifa soni',s.labels,s.homework,'#6c5ce7')}${chart('Darsga qatnashgan',s.labels,s.attend,'#e17055')}${chart('Darsda faollik',s.labels,s.active,'#00b894')}</div>`}
+async function sRank(m){const r=await api('/top?subject='+encodeURIComponent(m.subject));$('#v').innerHTML=`<div class="card"><h3>${h(m.subject)} — top 20</h3><p>Siz <b>${m.rank.place}-o'rindasiz</b> (${m.rank.total} ta o'quvchi)</p><table>${r.top.map(x=>`<tr><td>${x.place}</td><td>${h(x.name)}</td><td class="mut">${h(x.group)}</td><td class="coin">${x.coins} 🪙</td></tr>`).join('')}</table></div>`}
+async function sShop(m){const it=await api('/shop');$('#v').innerHTML=`<div class="card"><h3>Do'kon</h3><p>Sizda: <span class="coin">${m.balance} 🪙</span></p>${it.map(i=>`<div class="row"><div style="flex:1">${h(i.name)}</div><span class="coin">${i.price} 🪙</span><button ${m.balance<i.price?'disabled style="opacity:.4"':''} onclick="buy(${i.id})">Olish</button></div>`).join('')||'<span class="mut">Hozircha mahsulot yo\'q</span>'}</div>`}
+const buy=async id=>{await api(`/shop/${id}/buy`,'POST');alert('Sotib olindi! O\'qituvchidan oling.');studentView()};
+function sSet(m){$('#v').innerHTML=`<div class="card"><h3>Do'st taklif qilish — +100 🪙</h3><p>Taklif kodingiz: <span class="big" id="rc">${m.ref_code}</span></p><p class="mut">Do'stingiz ro'yxatdan o'tishda shu kodni yozsa, qabul qilingach sizga 100 coin qo'shiladi. Kod har ishlatilgandan keyin avtomatik o'zgaradi.</p><button class="g" onclick="api('/me/referral-new','POST').then(r=>rc.textContent=r.code)">Kodni yangilash</button></div>
+<div class="card"><h3>Login va parolni o'zgartirish</h3><div class="row"><input id="nl" value="${h(m.username)}"></div><div class="row"><input id="np" type="password" placeholder="Yangi parol"></div><button onclick="chg()">Saqlash</button></div>`}
+const chg=async()=>{await api('/me/password','POST',{login:val('nl'),password:val('np')});alert('Saqlandi');$('#np').value=''};
+start();
+</script></body></html>
